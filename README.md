@@ -1,85 +1,73 @@
 ﻿# PanRobot
 
-> `PanRobot` 是 `mingsn115` 项目的简介项目，用于快速了解能力边界与部署方式。
+## 1. PanRobot 是做什么的
 
-## mingsn115 主要功能
+`PanRobot` 是一个面向网盘（目前仅支持了115）影视资源管理场景的私有化应用，核心目标是把“订阅发现、资源转存、媒体库联动、系统运维”整合到统一后台中，降低日常追剧追更和资源管理成本。
 
-- 影视热门推荐：支持电影/剧集热门内容浏览与搜索。
-- 我的订阅：支持电影/剧集订阅管理与更新日历查看。
-- 订阅源管理：支持多种订阅源接入、测试与统一配置。
-- 115 网盘集成：支持扫码登录、保存目录管理、转存任务跟踪。
-- 自动化转存链路：资源抓取、元数据解析、过滤与转存状态追踪。
-- 媒体库联动：支持 Emby 媒体库配置、连接测试与同步覆盖分析。
-- 系统管理：内置用户/角色权限、系统配置、计划任务与版本检查。
+## 2. PanRobot 有哪些功能
 
-## 部署说明
+- 热门推荐：提供电影与剧集的热门内容浏览、检索与详情查看。
+- 我的订阅：支持电影/剧集订阅、状态管理与更新日历跟踪。
+- 订阅源管理：支持多订阅源接入、配置测试与统一维护。
+- 115 网盘集成：支持扫码登录、保存目录管理、转存任务查看。
+- 自动化转存链路：包含资源抓取、元数据解析、过滤与转存状态追踪。
+- 媒体库联动：支持 Emby 配置、连接测试与同步覆盖分析。
+- 系统管理：支持用户角色权限、系统配置、计划任务与版本检查。
 
-### 使用 Docker Compose 部署（推荐）
+## 3. 部署方式
 
-前置要求：
+推荐使用 `docker-compose` 部署。
 
-- Docker
-- Docker Compose
+1. 新建目录并创建 `docker-compose.yml`。
+2. 写入以下示例配置：
 
-1. 在服务器或本地新建目录（如 `panrobot`），创建 `docker-compose.yml`。
-2. 将下方内容粘贴到 `docker-compose.yml`。
-3. 在该目录执行：
+```yaml
+services:
+  panrobot:
+    image: listyle36/panrobot:latest
+    container_name: panrobot
+    restart: unless-stopped
+    ports:
+      - 9529:80
+      # transmission peer端口
+      - 52413:52413/tcp
+      - 52413:52413/udp
+    environment:
+      TZ: Asia/Shanghai
+      APP_JWT_SECRET: qwer1234
+      # 是否启用transmission磁力种子元数据解析
+      APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_ENABLED: true
+      # transmission地址（默认即可，内置了一个transmission-daemon）
+      APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_RPC_URL: http://127.0.0.1:9091/transmission/rpc
+      # 内置transmission-daemon账号
+      APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_USERNAME: admin
+      # 内置transmission-daemon密码
+      APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_PASSWORD: qwer1234
+      # 内置transmission-daemon peer端口
+      TRANSMISSION_PEER_PORT: 52413
+      # 内置transmission-daemon tracker
+      TRANSMISSION_DEFAULT_TRACKERS: http://1337.abcvg.info:80/announce
+        http://bt.okmp3.ru:2710/announce
+        http://ipv4.rer.lol:2710/announce
+        http://ipv6.rer.lol:6969/announce
+        http://lucke.fenesisu.moe:6969/announce
+        http://nyaa.tracker.wf:7777/announce
+    volumes:
+      # 后端配置
+      - ./config:/opt/app/runtime/config
+      # 前端配置
+      - ./frontend:/opt/app/runtime/frontend
+      # transmission-daemon 配置
+      - ./transmission:/opt/app/runtime/transmission
+      # 数据库
+      - ./data:/opt/app/runtime/data
+```
+
+3. 启动服务：
 
 ```bash
 docker compose up -d
 ```
 
-可选命令：
-
-```bash
-docker compose logs -f
-docker compose down
-```
-
-启动后访问：`http://<你的主机IP>:8080`
-
-默认初始账号：`admin / admin`（首次登录请立即修改密码）。
-
-## docker-compose 文档
-
-```yaml
-services:
-  panrss:
-    container_name: panrss
-    image: listyle36/panrss:latest
-    restart: unless-stopped
-    ports:
-      - "${APP_HTTP_PORT:-8080}:80"
-      - "${TRANSMISSION_PEER_PORT:-52413}:${TRANSMISSION_PEER_PORT:-52413}/tcp"
-      - "${TRANSMISSION_PEER_PORT:-52413}:${TRANSMISSION_PEER_PORT:-52413}/udp"
-    environment:
-      TZ: ${TZ:-Asia/Shanghai}
-      APP_DB_PATH: /opt/app/runtime/data/app.db
-      APP_JWT_SECRET: ${APP_JWT_SECRET:-please-change-me}
-      APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
-      APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_ENABLED: "true"
-      APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_RPC_URL: http://127.0.0.1:9091/transmission/rpc
-      APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_USERNAME: ${APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_USERNAME:-admin}
-      APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_PASSWORD: ${APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_PASSWORD:-change-me}
-      TRANSMISSION_PEER_PORT: ${TRANSMISSION_PEER_PORT:-52413}
-      JAVA_OPTS: "${JAVA_OPTS:--Xms256m -Xmx512m}"
-      SERVER_ADDRESS: 127.0.0.1
-      SERVER_PORT: 8080
-    volumes:
-      - ./runtime/config:/opt/app/runtime/config
-      - ./runtime/data:/opt/app/runtime/data
-      - ./runtime/frontend:/opt/app/runtime/frontend
-      - ./runtime/transmission:/opt/app/runtime/transmission
-```
-
-## 关键配置（建议）
-
-- `APP_HTTP_PORT`：应用对外端口（默认 `8080`）
-- `APP_JWT_SECRET`：JWT 密钥（生产环境务必修改）
-- `APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_USERNAME`
-- `APP_SUBSCRIPTION_TRANSFER_METADATA_TRANSMISSION_PASSWORD`
-- `TZ`：时区（默认 `Asia/Shanghai`）
-
----
-
-如需完整参数说明，可查看 `mingsn115/docs/docker-deploy.md` 与 `mingsn115/docs/transmission-setup.md`。
+访问地址：`http://<服务器IP>:9529`  
+默认账号：`admin / admin`（首次登录请立即修改密码）。
